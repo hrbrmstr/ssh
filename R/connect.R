@@ -21,7 +21,20 @@
 #' @useDynLib ssh C_start_session
 #' @rdname ssh
 #' @aliases ssh
-#' @param host an ssh server string of the form `[user@]hostname[:@port]`
+#' @param host an ssh server string of the form `[user@]hostname[:@port]` _or_
+#' just a host name or IPv4/IPv6 address if you intend to use the `user` and `port`
+#' parameters. If using IPv6 you must specify `host`, `user` and `port` separately.
+#' If using IPv6 you must specify `host`, `user` and `port` separately. You
+#' can also specify `host`, `user` and `port` separately for IPv4 addresses or
+#' hostnames.
+#' @param user either `NULL` (the default) or your username on the ssh server.
+#' If using IPv6 you must specify `host`, `user` and `port` separately. You
+#' can also specify `host`, `user` and `port` separately for IPv4 addresses or
+#' hostnames.
+#' @param port either `NULL` (the default) or the port on the ssh server.
+#' If using IPv6 you must specify `host`, `user` and `port` separately. You
+#' can also specify `host`, `user` and `port` separately for IPv4 addresses or
+#' hostnames.
 #' @param passwd either a string or a callback function for password prompt
 #' @param keyfile path to private key file. Must be in OpenSSH format (see details)
 #' @param verbose either TRUE/FALSE or a value between 0 and 4 indicating log level:
@@ -31,14 +44,21 @@
 #' session <- ssh_connect("dev.opencpu.org")
 #' ssh_exec_wait(session, command = "whoami")
 #' ssh_disconnect(session)
+#'
+#' # ssh_connect("user@@localhost:22")
+#' # ssh_connect("fe80::cb3:cc39:1354:d87b%en0", "user", 22)
+#' # ssh_connect("fe80::cb3:cc39:1354:d87b%en0", "user", 22)
+#' # ssh_connect("localhost", "user", 22)
+#' # ssh_connect("::1")
+#' # ssh_connect("somehostname", "bob", 22)
 #' }
-ssh_connect <- function(host, keyfile = NULL, passwd = askpass, verbose = FALSE) {
+ssh_connect <- function(host, user=NULL, port=NULL, keyfile = NULL, passwd = askpass, verbose = FALSE) {
   if(is.logical(verbose))
     verbose <- 2 * verbose # TRUE == 'protocol'
   stopifnot(verbose %in% 0:4)
   stopifnot(is.character(host))
   stopifnot(is.character(passwd) || is.function(passwd))
-  details <- parse_host(host, default_port = 22)
+  details <- parse_host(host, user, port, default_port = 22)
   if(length(keyfile))
     keyfile <- normalizePath(keyfile, mustWork = TRUE)
   .Call(C_start_session, details$host, details$port, details$user, keyfile, passwd, verbose)
@@ -63,32 +83,42 @@ ssh_disconnect <- function(session){
   invisible()
 }
 
-parse_host <- function(str, default_port){
+parse_host <- function(str, user = NULL, port = NULL, default_port){
   stopifnot(is.character(str) && length(str) == 1)
-  str <- sub("^@", "", str)
-  str <- sub(":$", "", str)
-  x <- strsplit(str, "@", fixed = TRUE)[[1]]
-  if(length(x) > 2) stop("host string contains multiple '@' characters")
-  host <- if(length(x) > 1){
-    user <- x[1]
-    x[2]
+  stopifnot(is.null(user) || (is.character(user) && (length(user) == 1)))
+  stopifnot(is.null(port) || (is.numeric(port) && (length(port) == 1)))
+  if (!is.na(iptools::is_ipv6(str))) { # either IPv6 or IPv4
+    list(
+      host = str,
+      user = if (length(user)) user else me(),
+      port = if (length(port)) port else as.numeric(default_port)
+    )
   } else {
-    user <- me()
-    x[1]
+    str <- sub("^@", "", str)
+    str <- sub(":$", "", str)
+    x <- strsplit(str, "@", fixed = TRUE)[[1]]
+    if(length(x) > 2) stop("host string contains multiple '@' characters")
+    host <- if(length(x) > 1){
+      user <- x[1]
+      x[2]
+    } else {
+      user <- me()
+      x[1]
+    }
+    x <- strsplit(host, ":", fixed = TRUE)[[1]]
+    if(length(x) > 2) stop("host string contains multiple ':' characters")
+    host <- x[1]
+    port <- if(length(x) > 1){
+      as.numeric(x[2])
+    } else {
+      as.numeric(default_port)
+    }
+    list(
+      user = user,
+      host = host,
+      port = port
+    )
   }
-  x <- strsplit(host, ":", fixed = TRUE)[[1]]
-  if(length(x) > 2) stop("host string contains multiple ':' characters")
-  host <- x[1]
-  port <- if(length(x) > 1){
-    as.numeric(x[2])
-  } else {
-    as.numeric(default_port)
-  }
-  list(
-    user = user,
-    host = host,
-    port = port
-  )
 }
 
 me <- function(){
