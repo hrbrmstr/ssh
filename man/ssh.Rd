@@ -9,7 +9,7 @@
 \title{SSH Client}
 \usage{
 ssh_connect(host, user = NULL, port = NULL, keyfile = NULL,
-  passwd = askpass, verbose = FALSE)
+  passwd = askpass, config = NULL, verbose = FALSE)
 
 ssh_info(session)
 
@@ -38,6 +38,9 @@ hostnames.}
 \item{keyfile}{path to private key file. Must be in OpenSSH format (see details)}
 
 \item{passwd}{either a string or a callback function for password prompt}
+
+\item{config}{if specified, the path to the desired SSH \code{config} file to use
+(e.g "\code{~/.ssh/config}"). \code{\link[=path.expand]{path.expand()}} will be called on this value if not \code{NULL}.}
 
 \item{verbose}{either TRUE/FALSE or a value between 0 and 4 indicating log level:
 0: no logging, 1: only warnings, 2: protocol, 3: packets or 4: full stack trace.}

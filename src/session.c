@@ -107,7 +107,7 @@ static void auth_any(ssh_session ssh, ssh_key privkey, SEXP rpass){
   Rf_error("Authentication failed, permission denied");
 }
 
-SEXP C_start_session(SEXP rhost, SEXP rport, SEXP ruser, SEXP keyfile, SEXP rpass, SEXP verbosity){
+SEXP C_start_session(SEXP rhost, SEXP rport, SEXP ruser, SEXP keyfile, SEXP rpass, SEXP rconfig, SEXP verbosity){
 
   /* try reading private key first */
   ssh_key privkey = NULL;
@@ -125,6 +125,9 @@ SEXP C_start_session(SEXP rhost, SEXP rport, SEXP ruser, SEXP keyfile, SEXP rpas
   assert_ssh(ssh_options_set(ssh, SSH_OPTIONS_USER, user), "set user", ssh);
   assert_ssh(ssh_options_set(ssh, SSH_OPTIONS_PORT, &port), "set port", ssh);
   assert_ssh(ssh_options_set(ssh, SSH_OPTIONS_LOG_VERBOSITY, &loglevel), "set verbosity", ssh);
+  if(Rf_length(rconfig)) {
+    assert_ssh(ssh_options_parse_config(ssh, CHAR(STRING_ELT(rconfig, 0))), "parse options", ssh);
+  }
 
   /* sets password callback for default private key */
   struct ssh_callbacks_struct cb = {

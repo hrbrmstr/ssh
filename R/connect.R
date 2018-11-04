@@ -37,6 +37,8 @@
 #' hostnames.
 #' @param passwd either a string or a callback function for password prompt
 #' @param keyfile path to private key file. Must be in OpenSSH format (see details)
+#' @param config if specified, the path to the desired SSH `config` file to use
+#' (e.g "`~/.ssh/config`"). [path.expand()] will be called on this value if not `NULL`.
 #' @param verbose either TRUE/FALSE or a value between 0 and 4 indicating log level:
 #' 0: no logging, 1: only warnings, 2: protocol, 3: packets or 4: full stack trace.
 #' @family ssh
@@ -52,7 +54,7 @@
 #' # ssh_connect("::1")
 #' # ssh_connect("somehostname", "bob", 22)
 #' }
-ssh_connect <- function(host, user=NULL, port=NULL, keyfile = NULL, passwd = askpass, verbose = FALSE) {
+ssh_connect <- function(host, user=NULL, port=NULL, keyfile = NULL, passwd = askpass, config=NULL, verbose = FALSE) {
   if(is.logical(verbose))
     verbose <- 2 * verbose # TRUE == 'protocol'
   stopifnot(verbose %in% 0:4)
@@ -61,7 +63,13 @@ ssh_connect <- function(host, user=NULL, port=NULL, keyfile = NULL, passwd = ask
   details <- parse_host(host, user, port, default_port = 22)
   if(length(keyfile))
     keyfile <- normalizePath(keyfile, mustWork = TRUE)
-  .Call(C_start_session, details$host, details$port, details$user, keyfile, passwd, verbose)
+  if (length(config)) {
+    config <- path.expand(config)
+    if (!file.exists(config)) {
+      warning("Config file ", config, " not found. Attempting to connect without the config file")
+    }
+  }
+  .Call(C_start_session, details$host, details$port, details$user, keyfile, passwd, config, verbose)
 }
 
 #' @export
