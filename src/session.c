@@ -125,7 +125,7 @@ SEXP C_start_session(SEXP rhost, SEXP rport, SEXP ruser, SEXP keyfile, SEXP rpas
   assert_ssh(ssh_options_set(ssh, SSH_OPTIONS_USER, user), "set user", ssh);
   assert_ssh(ssh_options_set(ssh, SSH_OPTIONS_PORT, &port), "set port", ssh);
   assert_ssh(ssh_options_set(ssh, SSH_OPTIONS_LOG_VERBOSITY, &loglevel), "set verbosity", ssh);
-  if(Rf_length(rconfig)) {
+  if(Rf_length(rconfig)) { // note that the params in a give host entry override any other specified
     assert_ssh(ssh_options_parse_config(ssh, CHAR(STRING_ELT(rconfig, 0))), "parse options", ssh);
   }
 
